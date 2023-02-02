@@ -1,5 +1,6 @@
 import argparse
 from psycopg2 import connect
+from psycopg2.errors import UniqueViolation, OperationalError
 from clcrypto import check_password
 from models import Users
 
@@ -8,30 +9,71 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-u', '--username', help='username')
 parser.add_argument('-p', '--password', help='password')
 parser.add_argument('-n', '--new_pass', help='new password')
-parser.add_argument('-l', '--list', help='show the user')
-parser.add_argument('-d', '--delete', help='delete the user')
-parser.add_argument('-e', '--edit', help='edit the user')
+parser.add_argument('-l', '--list', help='show the user', action='store_true')
+parser.add_argument('-d', '--delete', help='delete the user', action='store_true')
+parser.add_argument('-e', '--edit', help='edit the user', action='store_true')
 
 args = parser.parse_args()
 
 
-def create_the_user():
-    pass
+def create_user(cur, username, password):
+    if len(password) < 8:
+        return "Password is too short"
+    else:
+        try:
+            user = Users(username=username, password=password)
+            user.save_to_db(cur)
+            return "User created"
+        except UniqueViolation:
+            return "User already exists"
 
-def edit_the_password():
-    pass
+def edit_password(username, password, new_pass, cur):
+    user = Users.load_user_by_username(cur, username)
+    if not user:
+        return "User does not exist"
+    elif check_password(password, user.hashed_password):
+        if len(new_pass) < 8:
+            return "Password is too short"
+        else:
+            user.hashed_password = new_pass
+            user.save_to_db(cur)
+            return "Password changed"
+    else:
+        return "Incorrect password!"
 
-def delete_the_password():
-    pass
+def delete_user(username, password, cur):
+    user = Users.load_user_by_username(cursor, username)
+    if not user:
+        return "User does not exist"
+    elif check_password(password, user.hashed_password):
+        user.delete(cur)
+        return "User deleted"
+    else:
+        return "Incorrect password!"
 
-def show_the_user():
-    pass
+def show_all_users(cur):
+    users = Users.load_all_users(cur)
+    for user in users:
+        print(user.username)
 
-def print_help():
-    pass
+
 
 
 if __name__ == '__main__':
-    cnx = connect(database="message_server_database", user="postgres", password="postgres", host="127.0.0.1")
-    cnx.autocommit = True
-    cursor = cnx.cursor()
+    try:
+        conn = connect(database="message_server_database", user="postgres", password="postgres", host="127.0.0.1")
+        conn.autocommit = True
+        cursor = conn.cursor()
+        if args.username and args.password and args.edit and args.new_pass:
+            edit_password(cursor, args.username, args.password, args.new_pass)
+        elif args.username and args.password and args.delete:
+            delete_user(cursor, args.username, args.password)
+        elif args.username and args.password:
+            create_user(cursor, args.username, args.password)
+        elif args.list:
+            show_all_users(cursor)
+        else:
+            parser.print_help()
+        conn.close()
+    except OperationalError:
+        print("Connection Error")
