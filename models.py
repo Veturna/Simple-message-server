@@ -118,13 +118,3 @@ class Messages():
             loaded_message._creation_date = creation_date
             messages.append(loaded_message)
         return messages
-
-
-if __name__ == '__main__':
-    try:
-        conn = connect(database="message_server_database", user="postgres", password="postgres", host="127.0.0.1")
-        conn.autocommit = True
-        cursor = conn.cursor()
-        conn.close()
-    except OperationalError:
-        print("Connection Error")

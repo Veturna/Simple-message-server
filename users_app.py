@@ -1,6 +1,8 @@
 import argparse
-from psycopg2 import connect
-from psycopg2.errors import UniqueViolation, OperationalError
+
+from psycopg2 import connect, OperationalError
+from psycopg2.errors import UniqueViolation
+
 from clcrypto import check_password
 from models import Users
 
@@ -18,38 +20,41 @@ args = parser.parse_args()
 
 def create_user(cur, username, password):
     if len(password) < 8:
-        return "Password is too short"
+        print ("Password is too short")
     else:
         try:
             user = Users(username=username, password=password)
             user.save_to_db(cur)
-            return "User created"
+            print ("User created")
         except UniqueViolation:
-            return "User already exists"
+            print ("User already exists")
+
 
 def edit_password(username, password, new_pass, cur):
     user = Users.load_user_by_username(cur, username)
     if not user:
-        return "User does not exist"
+        print ("User does not exist")
     elif check_password(password, user.hashed_password):
         if len(new_pass) < 8:
-            return "Password is too short"
+            print ("Password is too short")
         else:
             user.hashed_password = new_pass
             user.save_to_db(cur)
-            return "Password changed"
+            print ("Password changed")
     else:
-        return "Incorrect password!"
+        print ("Incorrect password!")
+
 
 def delete_user(username, password, cur):
     user = Users.load_user_by_username(cursor, username)
     if not user:
-        return "User does not exist"
+        print ("User does not exist")
     elif check_password(password, user.hashed_password):
         user.delete(cur)
-        return "User deleted"
+        print ("User deleted")
     else:
-        return "Incorrect password!"
+        print ("Incorrect password!")
+
 
 def show_all_users(cur):
     users = Users.load_all_users(cur)
@@ -58,10 +63,9 @@ def show_all_users(cur):
 
 
 
-
 if __name__ == '__main__':
     try:
-        conn = connect(database="message_server_database", user="postgres", password="postgres", host="127.0.0.1")
+        conn = connect(database="message_server_database", user="postgres", password="coderslab", host="127.0.0.1")
         conn.autocommit = True
         cursor = conn.cursor()
         if args.username and args.password and args.edit and args.new_pass:
@@ -75,5 +79,5 @@ if __name__ == '__main__':
         else:
             parser.print_help()
         conn.close()
-    except OperationalError:
-        print("Connection Error")
+    except OperationalError as err:
+        print("Connection Error: ", err)
