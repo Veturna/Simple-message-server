@@ -99,17 +99,22 @@ class Messages():
     def save_to_db(self, cursor):
         if self._id == -1:
             sql = """INSERT INTO messages (from_id, to_id, text) 
-                    VALUES (%s, %s, %s)"""
+                    VALUES (%s, %s, %s) RETURNING id, creation_date"""
             values = (self.from_id, self.to_id, self.text)
             cursor.execute(sql, values)
             self._id, self._creation_date = cursor.fetchone()
             return True
         return False
 
+
     @staticmethod
-    def load_all_messages(cursor):
-        sql = """SELECT * FROM messages"""
-        cursor.execute(sql)
+    def load_all_messages(cursor, user_id=None):
+        if user_id:
+            sql = """SELECT * FROM messages WHERE to_id=%s"""
+            cursor.execute(sql, (user_id,))
+        else:
+            sql = """SELECT * FROM messages"""
+            cursor.execute(sql)
         messages = []
         for data in cursor.fetchall():
             id_, from_id, to_id, text, creation_date = data
